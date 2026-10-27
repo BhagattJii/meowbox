@@ -1,0 +1,33 @@
+name: Issue or feature request
+description: Report a problem or suggest an improvement in MeowBox
+title: ""
+labels: []
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, or what would you like to see?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Upload a 12 MB JPG
+        2. Open the returned link
+        3. See the wrong content type
+
+  - type: input
+    id: endpoint
+    attributes:
+      label: Affected URL or API reqtype
+      placeholder: /f/xxxxxx or fileupload
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant response or log output
+      description: Remove any API keys, tokens or file contents you do not want to share.
