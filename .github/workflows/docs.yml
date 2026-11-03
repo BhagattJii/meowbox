@@ -1,0 +1,55 @@
+name: Docs Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.md'
+      - 'docs/**'
+
+permissions:
+  contents: read
+
+jobs:
+  link-check:
+    name: Check internal links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run link checker
+        run: |
+          python3 scripts/check_docs_links.py
+
+  markdown-lint:
+    name: Markdown lint (basic)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for common issues
+        run: |
+          # Check for trailing whitespace (except in code blocks)
+          grep -rEn '[[:space:]]$' --include='*.md' . && exit 1 || true
+
+          # Check for TODO/FIXME without issue reference
+          grep -rEn '(TODO|FIXME)(?!\s*#\d+)' --include='*.md' . || true
+
+          # Ensure all docs have at least one heading
+          for f in $(find docs -name '*.md'); do
+            head -1 "$f" | grep -q '^#' || { echo "$f: missing top-level heading"; exit 1; }
+          done
+
+          echo "Markdown checks passed"

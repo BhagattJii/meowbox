@@ -1,0 +1,76 @@
+name: Bug Report
+description: Report a problem with MeowBox documentation or service behavior
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the fields below.
+        **Remove any API keys, tokens, userhash, session cookies, or file contents before submitting.**
+
+  - type: input
+    id: url
+    attributes:
+      label: Affected URL or API reqtype
+      placeholder: e.g., https://meowbox.dpdns.org/f/abc123 or reqtype=fileupload
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Numbered steps to reproduce the issue
+      placeholder: |
+        1. Go to https://meowbox.dpdns.org/
+        2. Upload a 10 MB JPG
+        3. Open the returned link
+        4. Observe incorrect Content-Type
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should happen?
+      placeholder: The link should return the file with correct Content-Type image/jpeg
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happens?
+      placeholder: Returns 404 or wrong Content-Type
+
+  - type: input
+    id: ua
+    attributes:
+      label: User-Agent / Client
+      placeholder: curl/8.5.0 or Chrome 119 / Firefox 118
+
+  - type: input
+    id: time
+    attributes:
+      label: Time (UTC)
+      placeholder: 2026-10-30 14:30 UTC
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Response / Error Output
+      description: Paste the exact error message, HTTP status, or response body. Redact secrets.
+      render: shell
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - I have removed all API keys, tokens, userhash, session cookies, and file contents
+          required: true
+        - This is a documentation bug (not a service bug)
+          required: false

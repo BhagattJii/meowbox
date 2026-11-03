@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: https://github.com/BhagattJii/meowbox/security/advisories/new
+    about: Report a security vulnerability privately (do not use public issues)
+  - name: Abuse / DMCA Report
+    url: mailto:meowboxteam@gmail.com
+    about: Report abuse, malware, or copyright infringement
+  - name: General Support
+    url: mailto:meowboxteam@gmail.com
+    about: Account help, questions, or business inquiries
