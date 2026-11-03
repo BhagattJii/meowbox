@@ -50,7 +50,7 @@ MeowBox accepts untrusted uploads from anonymous users and serves them back over
 | **Direct link access** | No auth (by design), `410 Gone` on expiry, `cache-control: no-cache`, purge on delete |
 | **API auth** | Session cookie **OR** `userhash` form field; `userhash` validated against `users` table |
 | **Delete authorization** | `owner == userhash` enforced per file; album ownership checked per album |
-| **Rate limits** | Edge-enforced via D1 counters + in-memory flood guard (see [limits](docs/LIMITS.md)) |
+| **Rate limits** | Edge-enforced via D1 counters + in-memory flood guard (see [limits](docs/limits.md)) |
 | **CORS** | `access-control-allow-origin: *` on API and served files |
 | **Security headers** | `nosniff`, `cross-origin-resource-policy: cross-origin`, HSTS 1y, `referrer-policy: no-referrer` |
 | **CSP on HTML** | `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` |

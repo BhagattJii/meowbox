@@ -90,8 +90,8 @@ curl -X POST https://meowbox.dpdns.org/user/api.php \
   -F "files=abc123xyz def456uvw"
 ```
 
-Full API reference → **[docs/API.md](docs/API.md)**  
-All limits → **[docs/LIMITS.md](docs/LIMITS.md)**
+Full API reference → **[docs/api.md](docs/api.md)**  
+All limits → **[docs/limits.md](docs/limits.md)**
 
 ---
 
@@ -111,7 +111,7 @@ All limits → **[docs/LIMITS.md](docs/LIMITS.md)**
 | Password | min 8 chars |
 | Session TTL | 30 days (HttpOnly, Secure, SameSite=Lax cookie) |
 
-Complete limits table → **[docs/LIMITS.md](docs/LIMITS.md)**
+Complete limits table → **[docs/limits.md](docs/limits.md)**
 
 ---
 
@@ -126,7 +126,7 @@ Complete limits table → **[docs/LIMITS.md](docs/LIMITS.md)**
 - **Delete anonymous files** with the `userhash` returned at upload time
 
 Security policy → **[SECURITY.md](SECURITY.md)**  
-Privacy details → **[docs/PRIVACY.md](docs/PRIVACY.md)**
+Privacy details → **[docs/privacy.md](docs/privacy.md)**
 
 ---
 
@@ -135,16 +135,16 @@ Privacy details → **[docs/PRIVACY.md](docs/PRIVACY.md)**
 | Document | Description |
 |----------|-------------|
 | [README.md](README.md) | This file — overview, quick start, links |
-| [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Architecture, request lifecycle, storage tiers, expiry, scanning |
-| [docs/API.md](docs/API.md) | Complete API reference with `reqtype` table, fields, curl examples, error codes |
-| [docs/LIMITS.md](docs/LIMITS.md) | Every limit with rationale and edge-case behavior |
-| [docs/FAQ.md](docs/FAQ.md) | 20+ frequently asked questions |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Tech stack, data flow, storage tiers, cron, security boundaries |
-| [docs/PRIVACY.md](docs/PRIVACY.md) | Data collected, retention, deletion rights, contact |
-| [docs/SEO.md](docs/SEO.md) | Sitemap, IndexNow, JSON-LD schema, Bing/Google guidance |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Planned features and milestones |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | How to deploy your own instance (bindings, secrets, wrangler) |
-| [docs/SUPPORT.md](docs/SUPPORT.md) | Help, abuse/DMCA reporting, contact |
+| [docs/how-it-works.md](docs/how-it-works.md) | Architecture, request lifecycle, storage tiers, expiry, scanning |
+| [docs/api.md](docs/api.md) | Complete API reference with `reqtype` table, fields, curl examples, error codes |
+| [docs/limits.md](docs/limits.md) | Every limit with rationale and edge-case behavior |
+| [docs/faq.md](docs/faq.md) | 20+ frequently asked questions |
+| [docs/architecture.md](docs/architecture.md) | Tech stack, data flow, storage tiers, cron, security boundaries |
+| [docs/privacy.md](docs/privacy.md) | Data collected, retention, deletion rights, contact |
+| [docs/seo.md](docs/seo.md) | Sitemap, IndexNow, JSON-LD schema, Bing/Google guidance |
+| [docs/roadmap.md](docs/roadmap.md) | Planned features and milestones |
+| [docs/deployment.md](docs/deployment.md) | How to deploy your own instance (bindings, secrets, wrangler) |
+| [docs/support.md](docs/support.md) | Help, abuse/DMCA reporting, contact |
 
 ---
 
@@ -160,13 +160,13 @@ Client → Cloudflare Edge (Worker)
             └─ Cron (15m)  → purge expired, clean DB, cache
 ```
 
-Detailed architecture → **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**
+Detailed architecture → **[docs/architecture.md](docs/architecture.md)**
 
 ---
 
 ## Roadmap
 
-See **[docs/ROADMAP.md](docs/ROADMAP.md)** for planned features (WebP auto-conversion, folder upload, WebDAV, client SDKs, etc.).
+See **[docs/roadmap.md](docs/roadmap.md)** for planned features (WebP auto-conversion, folder upload, WebDAV, client SDKs, etc.).
 
 ---
 

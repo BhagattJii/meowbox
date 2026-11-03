@@ -13,7 +13,7 @@
 ## Before Opening an Issue
 
 1. **Search existing issues** — your problem may already be reported.
-2. **Check the FAQ** — [docs/FAQ.md](faq.md) covers 20+ common questions.
+2. **Check the FAQ** — [docs/faq.md](faq.md) covers 20+ common questions.
 3. **Reproduce minimally** — note the exact steps, URL, and error message.
 4. **Remove secrets** — never paste API keys, `userhash`, session cookies, or file contents.
 
@@ -123,8 +123,8 @@ https://github.com/BhagattJii/meowbox/security/advisories/new
 
 - **Docs only** — this repo contains documentation, not service source
 - **Style** — Markdown, American English, concise, scannable
-- **PR checklist** — see [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Code of Conduct** — see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- **PR checklist** — see [../CONTRIBUTING.md](../CONTRIBUTING.md)
+- **Code of Conduct** — see [../CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md)
 
 ---
 

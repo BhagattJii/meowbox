@@ -24,7 +24,7 @@ Open a **Feature Request** issue (use the template) and describe:
 
 ### 3. Improve Documentation
 - Fix typos, clarify wording, add missing details
-- Add examples to `docs/API.md` or `docs/FAQ.md`
+- Add examples to `docs/api.md` or `docs/faq.md`
 - Update `README.md` if you change a user-facing feature
 - Keep style: Markdown, American English, concise, scannable
 
@@ -55,7 +55,7 @@ These principles guide the MeowBox service and its documentation:
 - **Format**: Markdown (GitHub-flavored)
 - **Tone**: Concise, direct, professional
 - **Structure**: Headings → short paragraphs → tables/lists for scannability
-- **Links**: Relative for internal (`docs/API.md`), absolute for external
+- **Links**: Relative for internal (`docs/api.md`), absolute for external
 - **Code blocks**: Use for curl examples, JSON, config — not for prose
 - **Tables**: Prefer tables for limits, API fields, error codes
 - **Emphasis**: `**bold**` for UI elements, `code` for technical terms
@@ -81,4 +81,4 @@ By contributing you agree that your contributions are licensed under the MIT lic
 ## Questions?
 
 - Open a **Discussion** (if enabled) or email `meowboxteam@gmail.com`
-- Check existing issues and the [FAQ](docs/FAQ.md) first
+- Check existing issues and the [FAQ](docs/faq.md) first
