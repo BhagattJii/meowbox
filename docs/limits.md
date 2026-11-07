@@ -11,6 +11,7 @@ Every limit is intentional, published, and enforced at the edge.
 | **Max file size** | 25 MB | Hard limit, returns `413` |
 | **GIF size** | 20 MB | Use WebM/MP4 for larger animations |
 | **Expiry options** | 2 h, 24 h, 2 d, 7 d, or permanent (default) | `ttl` in seconds: `7200`, `86400`, `172800`, `604800`, `0` |
+| **View-limit options** | 1 view, 2 views, or unlimited (default) | `views` in count: `1`, `2`, `0` |
 | **Banned extensions** | See table below | Blocked at upload, `403` |
 | **Magic bytes blocked** | MZ (PE/EXE), ELF | Checked before storage, `403` |
 
@@ -123,6 +124,7 @@ Exceeding returns `429` with plain-text error message.
 | 404 | `404 Not Found` | File/album not found |
 | 405 | `Error: use POST` | Wrong method on API |
 | 410 | `410 Gone - link expiry time reached` | Expired link |
+| 410 | `410 Gone - view limit reached` | View-limited link used its last allowed open; file purged |
 | 413 | `Error: file too large (max 25MB)` | Size limit |
 | 429 | `Error: slow down` / `too many attempts` | Rate limit |
 | 500 | `Error: uploads disabled` | Storage backend down |
@@ -154,6 +156,6 @@ All errors: `text/plain; charset=utf-8`, no JSON.
 
 - **No hidden quotas** — every cap is documented here and on the [Tools page](https://meowbox.dpdns.org/tools).  
 - **No paid tiers** — all features free, no VIP, no premium.  
-- **No password-protected links** — expiry and deletion are the access controls.  
+- **No password-protected links** — expiry, view limits and deletion are the access controls.  
 - **No single-file uploads above 25 MB** — split or use WebM for video.  
 - **No album viewer page** — albums managed via API only.

@@ -26,6 +26,8 @@ Executables (`.exe`, `.jar`, `.scr`, `.cpl`, `.msi`, `.bat`, `.cmd`, `.vbs`, `.p
 ### 6. How long do links last?
 **Permanent by default.** You can also choose an expiry at upload: 2 hours, 24 hours, 2 days, or 7 days. Expired links return `410 Gone` and the file is purged.
 
+**View limits.** Also at upload you can pick how many times the link may be opened: **1 view** (a one-shot link), **2 views**, or unlimited (default). After the last allowed view the link returns `410 Gone - view limit reached` and the file is purged from storage. Preview bots (Discord, Telegram, ...) and HEAD requests do not consume views.
+
 ### 7. Can I delete an anonymous upload?
 Only if you saved the **userhash** returned at upload time (`Registered! Your userhash: ...`). Without it, anonymous files cannot be deleted via API. (Account uploads are deletable from the dashboard.)
 

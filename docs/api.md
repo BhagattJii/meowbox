@@ -14,6 +14,7 @@ Authentication: session cookie (`sess`) **or** `userhash`/`key` form field.
 | `reqtype` | Yes | Action to perform (see table below) |
 | `userhash` / `key` | For authenticated actions | 24-char string returned at registration/upload |
 | `ttl` | Optional | Link lifetime in seconds: `0` (default, permanent), `7200` (2 h), `86400` (24 h), `172800` (2 d), `604800` (7 d). Values outside range are clamped. |
+| `views` | Optional | View limit: `0` (default, unlimited), `1` (one-shot link), `2`, or any integer up to `999999`. A limited link returns `410 Gone - view limit reached` after the last allowed view, and the file is purged from storage. |
 
 ---
 
@@ -40,6 +41,7 @@ Authentication: session cookie (`sess`) **or** `userhash`/`key` form field.
 |-------|------|----------|-------|
 | `fileToUpload` | file | Yes | The file to upload |
 | `ttl` | integer | No | Link lifetime in seconds (0 = permanent) |
+| `views` | integer | No | View limit (0 = unlimited, 1 = one-shot link, 2 = two views, ...) |
 
 **Response**  
 `200 OK` → direct link: `https://meowbox.dpdns.org/f/abc123xyz`  
@@ -51,6 +53,7 @@ curl -X POST https://meowbox.dpdns.org/user/api.php \
   -F "reqtype=fileupload" \
   -F "fileToUpload=@photo.jpg" \
   -F "ttl=0"
+  -F "views=2"
 # → https://meowbox.dpdns.org/f/abc123xyz
 ```
 

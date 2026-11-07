@@ -1,6 +1,6 @@
 # How MeowBox Works
 
-This document explains the request lifecycle, storage model, expiry handling, malware scanning, and rate limits — in plain language, no implementation code.
+This document explains the request lifecycle, storage model, expiry and view-limit handling, malware scanning, and rate limits — in plain language, no implementation code.
 
 ---
 
@@ -44,6 +44,7 @@ This document explains the request lifecycle, storage model, expiry handling, ma
    - Remove DB row.  
    - Purge Cloudflare cache for the short ID.  
    - Return `410 Gone - link expiry time reached`.
+   - View limits: if the file has a view limit and the request is a real open (GET, not a preview bot or HEAD), the view counter is incremented atomically. When the limit is exhausted the link returns `410 Gone - view limit reached` and the file is purged. Limited links are never cached (edge or browser), so only genuine opens are counted. A background sweep also purges exhausted limited files.
 4. **Cache hit** — for KV-stored files, try Cloudflare cache first.  
 5. **Serve**  
    - KV: read from KV, set `cache-control: public, max-age=120, s-maxage=<ttl>`.  
