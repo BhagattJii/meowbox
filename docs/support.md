@@ -114,7 +114,7 @@ https://github.com/BhagattJii/meowbox/security/advisories/new
 ## Community
 
 - **GitHub Discussions** — not enabled (low volume)
-- **Social** — Instagram [@i.lakshyy](https://www.instagram.com/i.lakshyy) (owner)
+- **Social** — Instagram [@iscoderbro](https://www.instagram.com/iscoderbro) (owner)
 - **Email** — `meowboxteam@gmail.com`
 
 ---
