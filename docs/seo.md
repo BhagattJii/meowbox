@@ -193,7 +193,7 @@ All redirects include `Cache-Control: public, max-age=3600`.
 
 | Competitor | Domain Authority | Notes |
 |------------|------------------|-------|
-| `meowbox.com` | High | Cat subscription box — different intent, but brand collision on "meowbox" |
+| A similarly named subscription-box brand | High | Cat subscription box — different intent, but brand collision on "meowbox" |
 | `wetransfer.com` | Very High | Paid tiers, 2 GB free |
 | `file.io` | Medium | Ephemeral links, no permanent |
 | `gofile.io` | Medium | Free, but ads/trackers |
