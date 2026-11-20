@@ -8,7 +8,7 @@ This guide explains how to deploy a MeowBox-compatible file host on Cloudflare W
 
 ## Prerequisites
 
-- Cloudflare account with Workers Paid plan (for D1, KV, Cron Triggers)
+- Cloudflare account (the free plan covers Workers, D1, KV and Cron Triggers; free-tier quotas apply)
 - `wrangler` CLI installed (`npm install -g wrangler` or `pipx install wrangler`)
 - Git (for version control)
 - Node.js ≥ 18 (for local dev/testing)
@@ -23,7 +23,7 @@ wrangler d1 create meowbox-db
 # Note the database_id from output
 ```
 
-Run the schema (see `schema.sql` in this repo):
+Create the tables using the schema in section 11 (save it as `schema.sql` first):
 ```bash
 wrangler d1 execute meowbox-db --file=schema.sql
 ```
@@ -56,10 +56,12 @@ compatibility_date = "2026-01-01"
 # Set via env var: CLOUDFLARE_ACCOUNT_ID
 # account_id = "YOUR_ACCOUNT_ID"
 
-[assets]
-directory = "./public"
-binding = "ASSETS"
-run_worker_first = true
+# The live service bundles static files into worker.js.
+# If you prefer Workers Assets instead, uncomment this block:
+# [assets]
+# directory = "./public"
+# binding = "ASSETS"
+# run_worker_first = true
 
 [[d1_databases]]
 binding = "DB"
@@ -104,7 +106,7 @@ wrangler secret put VT_API_KEY
 my-meowbox/
 ├── src/
 │   └── worker.js          # Your Worker implementation
-├── public/                # Static assets (served via ASSETS binding)
+├── public/                # Static assets (bundled into worker.js in the live service)
 │   ├── index.html
 │   ├── style.css
 │   ├── upload.js
@@ -116,7 +118,7 @@ my-meowbox/
 │   ├── browserconfig.xml
 │   ├── .well-known/security.txt
 │   └── ... (other pages)
-├── schema.sql             # D1 schema (from this repo)
+├── schema.sql             # D1 schema (from section 11)
 ├── wrangler.toml          # Config (with your IDs)
 ├── package.json           # Optional: for lint/test scripts
 └── README.md
@@ -141,7 +143,7 @@ curl -X POST http://localhost:8787/user/api.php \
 ## 6. Deploy to Production
 
 ```bash
-# Deploy Worker + assets
+# Deploy Worker (and assets, if configured)
 wrangler deploy
 
 # Deploy cron trigger (every 15 min)
@@ -224,26 +226,39 @@ print(urllib.request.urlopen(req).status)  # 200 = success
 
 ## 11. Schema Reference
 
-The `schema.sql` in this repo creates:
+The live D1 schema (save it as `schema.sql` if you use the command above):
 
 ```sql
 CREATE TABLE files (
   short TEXT PRIMARY KEY,
-  ext TEXT, size INTEGER, sha256 TEXT, mime TEXT,
-  owner TEXT, ip TEXT, store TEXT,      -- 'kv' or 'remote'
-  kv_key TEXT, remote_ref TEXT,
-  created REAL, expires_at REAL         -- 0 = permanent
+  ext TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  mime TEXT,
+  owner TEXT,
+  ip TEXT,
+  store TEXT NOT NULL DEFAULT 'kv',      -- 'kv' or 'tg'
+  kv_key TEXT,
+  tg_chat TEXT, tg_msg INTEGER, tg_file_id TEXT,
+  created INTEGER NOT NULL,
+  hits INTEGER DEFAULT 0,
+  expires_at INTEGER DEFAULT 0,          -- 0 = permanent
+  view_limit INTEGER DEFAULT 0,
+  views INTEGER DEFAULT 0
 );
-CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, email TEXT, pass_hash TEXT, userhash TEXT UNIQUE, ip TEXT, created REAL);
-CREATE TABLE sessions (sid TEXT PRIMARY KEY, user_id INTEGER, expires REAL);
-CREATE TABLE albums (short TEXT PRIMARY KEY, title TEXT, descr TEXT, owner TEXT, created REAL);
-CREATE TABLE album_files (album_short TEXT, file_short TEXT, PRIMARY KEY (album_short, file_short));
-CREATE TABLE rate2 (ip TEXT, w INTEGER, n INTEGER, PRIMARY KEY (ip, w));
+CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, email TEXT, pass_hash TEXT NOT NULL, userhash TEXT UNIQUE NOT NULL, ip TEXT, created INTEGER NOT NULL);
+CREATE TABLE sessions (sid TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires INTEGER NOT NULL);
+CREATE TABLE albums (short TEXT PRIMARY KEY, title TEXT, descr TEXT, owner TEXT, created INTEGER NOT NULL);
+CREATE TABLE album_files (album_short TEXT NOT NULL, file_short TEXT NOT NULL, PRIMARY KEY (album_short, file_short));
+CREATE TABLE rate2 (ip TEXT NOT NULL, w INTEGER NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (ip, w));
 CREATE TABLE blocked_hashes (sha256 TEXT PRIMARY KEY, note TEXT);
-CREATE TABLE blocked_md5 (md5 TEXT PRIMARY KEY);
+CREATE TABLE blocked_md5 (md5 TEXT PRIMARY KEY, note TEXT);
 CREATE TABLE crawl_log (ts INTEGER, ua TEXT, path TEXT);
-CREATE INDEX idx_files_owner ON files(owner);
-CREATE INDEX idx_files_expires ON files(expires_at);
+CREATE TABLE abuse_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, kind TEXT, url TEXT, email TEXT, details TEXT, ip TEXT, ua TEXT);
+CREATE TABLE contact_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, name TEXT, email TEXT, subject TEXT, message TEXT, ip TEXT, ua TEXT);
+CREATE INDEX idx_files_exp ON files(expires_at);
+CREATE INDEX idx_abuse_ts ON abuse_reports(ts);
+CREATE INDEX idx_contact_ts ON contact_messages(ts);
 ```
 
 ---
@@ -252,10 +267,10 @@ CREATE INDEX idx_files_expires ON files(expires_at);
 
 | Issue | Cause | Fix |
 |-------|-------|-----|
-| `403` on upload | Banned extension / magic bytes / malware | Check `BANNED_EXT` list, file type |
-| `503` capacity | KV soft cap (950 MB) + remote store down | Check remote store credentials, KV usage |
+| `403` on upload | Banned extension / magic bytes / known-bad hash | Check `BANNED_EXT` list, file type, blocklists |
+| `503` capacity | KV soft cap (950 MB) with no Telegram backend, or a Telegram file while `BOT_TOKEN` is empty | Check KV usage and `BOT_TOKEN` |
 | `410` immediately | TTL set to 0 but `expires_at` wrong | Ensure `ttl=0` → `expires_at=0` in DB |
-| `404` on serve | KV key deleted / remote message gone | Check cron logs, remote store retention |
+| `404` on serve | KV key deleted / Telegram message gone | Check cron logs and channel retention |
 | Cron not running | Trigger not deployed | `wrangler deploy --cron "*/15 * * * *"` |
 | IndexNow 400 | Key mismatch / wrong host | Verify key file at `/.well-known/` matches |
 
@@ -270,7 +285,7 @@ CREATE INDEX idx_files_expires ON files(expires_at);
 - [ ] CSP headers on all HTML responses
 - [ ] HSTS 1 year, `nosniff`, `cross-origin-resource-policy: cross-origin`
 - [ ] Rate limits enforced on all mutating endpoints
-- [ ] Malware scan fail-open (availability over strictness)
+- [ ] Malware hash checks fail-open (availability over strictness)
 - [ ] No secrets in logs (Worker tail redacted)
 
 ---

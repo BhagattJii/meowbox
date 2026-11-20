@@ -33,7 +33,7 @@ MeowBox accepts untrusted uploads from anonymous users and serves them back over
 | Area | Threats |
 |------|---------|
 | **Upload validation** | Path traversal, filename injection, MIME/type sniffing bypass, banned file types bypass |
-| **Malware scanning** | Storing a file whose signature was rejected; cache poisoning |
+| **Malware checks** | Storing a file whose known-bad hash was rejected; cache poisoning |
 | **Direct links / hotlinking** | Access-control bypass on `/f/*`, expired files served (should be `410 Gone`) |
 | **API (`/user/api.php`)** | Broken auth on `deletefiles`/album endpoints, `userhash` guessing/reuse, CSRF |
 | **Infrastructure** | SSRF in `urlupload`, SQL injection, path traversal in album/cover handling, rate-limit bypass |
@@ -46,14 +46,14 @@ MeowBox accepts untrusted uploads from anonymous users and serves them back over
 | Control | Implementation |
 |---------|----------------|
 | **Upload validation** | Extension allowlist, magic-byte block (MZ/ELF), size clamp, filename sanitization |
-| **Malware scanning** | SHA-256 → MalwareBazaar + optional VirusTotal, 30-day KV cache, fail-open |
+| **Malware checks** | SHA-256/MD5 blocklists + OTX reputation, optional MalwareBazaar/VirusTotal, 30-day KV cache, fail-open. Not a full antivirus scan |
 | **Direct link access** | No auth (by design), `410 Gone` on expiry, `cache-control: no-cache`, purge on delete |
 | **API auth** | Session cookie **OR** `userhash` form field; `userhash` validated against `users` table |
 | **Delete authorization** | `owner == userhash` enforced per file; album ownership checked per album |
 | **Rate limits** | Edge-enforced via D1 counters + in-memory flood guard (see [limits](docs/limits.md)) |
 | **CORS** | `access-control-allow-origin: *` on API and served files |
 | **Security headers** | `nosniff`, `cross-origin-resource-policy: cross-origin`, HSTS 1y, `referrer-policy: no-referrer` |
-| **CSP on HTML** | `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` |
+| **CSP on HTML** | `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'` |
 | **Secrets management** | All secrets in Cloudflare Worker secrets (`BOT_TOKEN`, `MB_AUTHKEY`, `VT_API_KEY`); never in repo |
 
 ---
@@ -61,7 +61,7 @@ MeowBox accepts untrusted uploads from anonymous users and serves them back over
 ## Out of Scope
 
 - Attacks requiring compromise of Cloudflare infrastructure
-- Attacks requiring compromise of Telegram / remote object store
+- Attacks requiring compromise of Telegram or its private storage channel
 - Social engineering of the maintainer
 - Denial-of-service beyond Cloudflare's protection
 

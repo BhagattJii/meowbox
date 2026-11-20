@@ -29,13 +29,14 @@ doc, docm, docx, dot, dotx, htaccess, php, phtml
 
 | Bucket | Limit | Window | Key | Response |
 |--------|-------|--------|-----|----------|
-| **Upload** (`fileupload`/`urlupload`) | 60 req | 1 hour | Client IP | `429` |
+| **Upload** (`fileupload`/`urlupload`) | 30 req | 1 hour | Client IP | `429` |
+| **Upload data** | 300 MB | 24 hours | Client IP | `429` |
 | **Signup** | 5 req | 1 hour | Client IP | `429` |
 | **Login (per IP)** | 20 req | 15 min | Client IP | `429` |
 | **Login (per username)** | 8 req | 15 min | IP + username | `429` |
 | **View (soft)** | 25 req | 1 min | Client IP | soft throttle |
 | **View (hard)** | 5,000 req | 1 hour | Client IP (after soft exceeded) | `429` |
-| **API general** | 60 req | 1 hour | Client IP | `429` |
+| **API general** | 60 req | 1 min | Client IP | `429` |
 
 Exceeding returns `429` with plain-text error message.
 
@@ -83,20 +84,24 @@ Exceeding returns `429` with plain-text error message.
 | Limit | Value |
 |-------|-------|
 | Max download size | 25 MB |
-| Timeout | 10 seconds (fetch) |
-| Redirects | Followed (max 10) |
-| Same validation as `fileupload` | Extensions, magic bytes, malware scan |
+| Timeout | Subject to the Worker request timeout (no separate fetch timeout) |
+| Redirects | Followed (max 4) |
+| Same validation as `fileupload` | Extensions, magic bytes, hash reputation check |
 
 ---
 
-## Malware Scan Limits
+## Malware Check Limits
 
-| Aspect | Limit |
-|--------|-------|
+| Aspect | Behavior |
+|--------|----------|
+| Hash | SHA-256, plus an MD5 local blocklist |
+| Primary lookup | AlienVault OTX, active by default |
+| Optional scanners | MalwareBazaar and VirusTotal when their API keys are configured |
 | Cache TTL | 30 days (KV) |
-| VirusTotal threshold | `malicious + suspicious ≥ 3` |
-| Fail-open | Any scan error → file accepted |
+| VirusTotal threshold | `malicious + suspicious ≥ 3` (when configured) |
+| Fail-open | Any lookup error → file accepted |
 | Blocked hash retention | Permanent in `blocked_hashes` table |
+| Coverage | Known-bad hashes only; this is not a full antivirus scan, so unknown malware can still pass |
 
 ---
 
@@ -111,6 +116,8 @@ Exceeding returns `429` with plain-text error message.
 | `cross-origin-resource-policy` | `cross-origin` |
 | `strict-transport-security` | `max-age=31536000` |
 | `referrer-policy` | `no-referrer` |
+| `content-disposition` | `inline` normally; `attachment` for HTML/HTM/PHP/SVG/JS, filename `<short>.<ext>` |
+| `accept-ranges` | Not sent; HTTP Range requests are not supported |
 
 ---
 
@@ -128,7 +135,7 @@ Exceeding returns `429` with plain-text error message.
 | 413 | `Error: file too large (max 25MB)` | Size limit |
 | 429 | `Error: slow down` / `too many attempts` | Rate limit |
 | 500 | `Error: uploads disabled` | Storage backend down |
-| 503 | `Error: service temporarily at capacity` | KV soft cap hit |
+| 503 | `Error: service temporarily at capacity` / `Temporarily unavailable` | KV soft cap hit, or a Telegram-backed file while the bot is not configured |
 
 All errors: `text/plain; charset=utf-8`, no JSON.
 
@@ -142,13 +149,14 @@ All errors: `text/plain; charset=utf-8`, no JSON.
 | GIF > 20 MB | `403` with "gif too large, use webm" |
 | Banned extension | `403` "file extension not allowed" |
 | Executable magic bytes | `403` "executable files not allowed" |
-| Upload rate > 60/hr | `429` "slow down" |
+| Upload rate > 30/hr | `429` "slow down" |
+| Upload data > 300 MB/day | `429` daily limit message |
 | View rate > 25/min | Soft throttle, then `429` after 5,000/hr |
-| Signup > 5/hr/IP | `429` "too many signups from this device" |
+| Signup > 5/hr/IP | `429` "too many signups from this IP" |
 | Login > 20/15min/IP | `429` "too many login attempts, try again in 15 min" |
 | Login > 8/15min/user | `429` "too many attempts, wait 15 min" |
-| KV soft cap (950 MB) | New large/permanent uploads → remote store; if remote fails → `503` |
-| Malware hash match | `403` "file blocked (malware detected)" |
+| KV soft cap (950 MB) | Permanent files ≤ 20 MB go to Telegram; if Telegram is unavailable, uploads that cannot use KV return `503` |
+| Known-bad hash match | `403` "file blocked (malware detected)" |
 
 ---
 

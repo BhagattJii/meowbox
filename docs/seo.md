@@ -93,7 +93,7 @@ Sitemap: https://meowbox.dpdns.org/sitemap.xml
 | `/free-file-sharing` | MeowBox Free File Sharing — Upload & Share Direct Links | MeowBox Free is free file sharing and hosting with direct links. Upload up to 25 MB, no signup, no ads, permanent or expiring links, albums and a simple API. |
 | `/faq` | FAQ — MeowBox Free File Sharing | Answers to common questions about MeowBox Free: limits, accounts, API, security, and how to upload. |
 | `/tools` | Tools & API — MeowBox Free File Sharing | MeowBox API reference, curl examples, limits, and file-type rules for developers. |
-| `/safety` | Safety & Security — MeowBox Free | How MeowBox keeps uploads safe: malware scanning, banned types, rate limits, and privacy. |
+| `/safety` | Safety & Security — MeowBox Free | How MeowBox keeps uploads safe: hash-based malware checks, banned types, rate limits, and privacy. |
 | `/why` | Why MeowBox — Free File Sharing & Hosting | Why choose MeowBox: no ads, no signup, direct links, permanent or expiring, albums, API. |
 | `/contact` | Contact — MeowBox Free | Get in touch with the MeowBox team for support, abuse reports, or business inquiries. |
 | `/legal` | Legal & Privacy — MeowBox Free | Terms of service, privacy policy, DMCA, and acceptable use for MeowBox Free. |
@@ -198,7 +198,7 @@ All redirects include `Cache-Control: public, max-age=3600`.
 | `file.io` | Medium | Ephemeral links, no permanent |
 | `gofile.io` | Medium | Free, but ads/trackers |
 
-**Strategy**: Own "MeowBox Free file sharing" long-tail; differentiate on *no ads, no signup, permanent links, malware scan*.
+**Strategy**: Own "MeowBox Free file sharing" long-tail; differentiate on *no ads, no signup, permanent links, malware hash checks*.
 
 ---
 

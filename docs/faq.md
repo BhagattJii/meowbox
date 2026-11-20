@@ -14,7 +14,7 @@ MeowBox is a free file hosting service that gives you a **direct link** for ever
 **No.** Anonymous uploads work out of the box. A free account only adds a dashboard, albums, and the ability to delete your files later.
 
 ### 4. What file types are allowed?
-Images (JPG, PNG, WebP, BMP, sanitized SVG), video (MP4, WebM), audio (MP3, OGG, WAV), PDF, text, archives (ZIP), fonts — essentially anything except executables and scripts. Max 25 MB per file (GIFs 20 MB).
+Images (JPG, PNG, WebP, BMP, SVG served as a download), video (MP4, WebM), audio (MP3, OGG, WAV), PDF, text, archives (ZIP), fonts — essentially anything except executables and scripts. Max 25 MB per file (GIFs 20 MB).
 
 ### 5. What is banned?
 Executables (`.exe`, `.jar`, `.scr`, `.cpl`, `.msi`, `.bat`, `.cmd`, `.vbs`, `.ps1`, `.apk`, `.php`, `.htaccess`, etc.), malware, and illegal content. Full list in [docs/LIMITS.md](limits.md).
@@ -29,16 +29,16 @@ Executables (`.exe`, `.jar`, `.scr`, `.cpl`, `.msi`, `.bat`, `.cmd`, `.vbs`, `.p
 **View limits.** Also at upload you can pick how many times the link may be opened: **1 view** (a one-shot link), **2 views**, or unlimited (default). After the last allowed view the link returns `410 Gone - view limit reached` and the file is purged from storage. Preview bots (Discord, Telegram, ...) and HEAD requests do not consume views.
 
 ### 7. Can I delete an anonymous upload?
-Only if you saved the **userhash** returned at upload time (`Registered! Your userhash: ...`). Without it, anonymous files cannot be deleted via API. (Account uploads are deletable from the dashboard.)
+Only if you supplied or saved the **24-char userhash** at upload time. The web uploader generates one and saves it in your browser; API clients can send their own. The upload response only contains the link, not a key. Without that userhash, anonymous files cannot be deleted via API. Account uploads are deletable from the dashboard.
 
 ### 8. What is the maximum file size?
 **25 MB** per file. **GIFs are capped at 20 MB** — convert to WebM for larger animations.
 
 ### 9. Can I upload from a URL instead of my computer?
-Yes — use `reqtype=urlupload` with the `url` field. The remote file is fetched (max 25 MB), scanned, and hosted just like a direct upload.
+Yes — use `reqtype=urlupload` with the `url` field. The remote file is fetched (max 25 MB), checked against hash reputation lists, and hosted just like a direct upload.
 
 ### 10. Are there upload rate limits?
-**60 uploads per hour per IP.** Exceeding returns `429`. See [docs/LIMITS.md](limits.md) for all rate limits.
+**30 uploads per hour and 300 MB per day per IP.** Exceeding returns `429`. See [docs/LIMITS.md](limits.md) for all rate limits.
 
 ---
 
@@ -69,7 +69,7 @@ Not implemented yet. Contact `meowboxteam@gmail.com` for manual removal.
 ### 16. How do I authenticate API calls?
 Either:
 - **Session cookie** (from web login) — browser only
-- **`userhash` form field** — returned at registration or first upload
+- **`userhash` form field** — returned at registration, or generated for anonymous uploads
 
 ### 17. Can I use the API from a script / bot?
 Yes. Example in [docs/API.md](api.md). Include a descriptive `User-Agent` (e.g., `MyBot/1.0`).
@@ -93,19 +93,19 @@ Full details & curl examples → **[docs/API.md](api.md)**
 ## Security & Privacy
 
 ### 18. Is there malware scanning?
-**Yes.** Every upload is hashed (SHA-256) and checked against MalwareBazaar (abuse.ch) and optionally VirusTotal. Known malware is blocked and permanently blacklisted. Scan failures fail open (file accepted) to avoid availability loss.
+**Yes, with limits.** Every upload is hashed (SHA-256, plus an MD5 local blocklist) and checked against AlienVault OTX by default; MalwareBazaar and VirusTotal are used when configured. Known-bad hashes are blocked and permanently blacklisted. Lookup failures fail open (file accepted) to avoid availability loss. This is a reputation check, not a full antivirus scan — unknown malware can still pass.
 
 ### 19. Do you track me?
 **No.** No analytics, no third-party scripts, no pixels, no cookies except the session cookie for logged-in users. IP is retained only for anti-abuse (malware/DMCA reports).
 
 ### 20. What happens to my IP?
-Logged at upload for 30 days (rate limiting, abuse reports). Not sold, not shared, not used for marketing.
+Stored with the file metadata while the file exists, and used only for rate limiting and abuse/DMCA investigations. Not sold, not shared, not used for marketing. Rate-limit counters are purged on a rolling schedule.
 
 ### 21. Can I report abuse / DMCA?
 Yes. Email `meowboxteam@gmail.com` with the direct link (`/f/xxxxxx`) and details. We act on valid reports promptly.
 
 ### 22. Are files encrypted at rest?
-Files in KV are stored as-is (Cloudflare encrypts at rest). Files in the remote object store are stored per that provider's encryption. No client-side encryption — if you need it, encrypt before upload.
+Files in KV are stored as-is (Cloudflare encrypts at rest). Permanent files up to 20 MB may be stored in a private Telegram channel, encrypted at rest by Telegram. No client-side encryption — if you need it, encrypt before upload.
 
 ---
 
@@ -119,7 +119,7 @@ The link expired (you chose a TTL) or the file was deleted. Expired files are pu
 
 ### 24. Why `403` on upload?
 - Banned extension / executable magic bytes
-- Malware signature match
+- Known-bad hash match
 - Rate limit exceeded
 - Invalid `userhash`
 
@@ -127,7 +127,7 @@ The link expired (you chose a TTL) or the file was deleted. Expired files are pu
 Rate limit exceeded. See [docs/LIMITS.md](limits.md) for all buckets.
 
 ### 26. Does MeowBox support WebDAV / S3 API / FTP?
-**No.** Only the HTTP API at `/user/api.php`.
+**No.** Only the HTTP API at `/user/api.php`. There is no WebDAV mount; see [the WebDAV guide](https://meowbox.dpdns.org/guides/webdav-usage) for practical alternatives.
 
 ### 27. Can I use a custom domain?
 The service runs on `meowbox.dpdns.org`. Custom domains are not supported at this time.

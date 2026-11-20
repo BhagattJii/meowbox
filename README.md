@@ -36,8 +36,8 @@ Most file hosts throttle free users, force signups, inject ads, or expire links 
 | **Anonymous uploads** | No email, no signup, no login required |
 | **Expiring links** | Permanent by default, or auto-delete after 2 h / 24 h / 2 d / 7 d (returns `410 Gone`) |
 | **Albums & delete control** | Free account adds dashboard, albums, one-click deletion |
-| **Malware scanning** | Every upload checked before serving; malware blocked & blacklisted |
-| **All file types** | Images, video, audio, PDF, archives up to 25 MB (GIFs capped at 20 MB) |
+| **Malware checks** | Every upload checked against hash reputation lists before serving; known-bad hashes blocked & blacklisted. Not a full antivirus scan |
+| **Most file types** | Images, video, audio, PDF, archives up to 25 MB (GIFs capped at 20 MB). Executables and scripts are banned |
 | **REST API** | Single `POST /user/api.php` endpoint, one `reqtype` per action |
 | **Zero tracking** | No ads, no analytics, no third-party scripts, no data sold |
 
@@ -71,7 +71,7 @@ curl -X POST https://meowbox.dpdns.org/user/api.php \
   -F "url=https://example.com/video.mp4" \
   -F "ttl=172800"   # 2 days in seconds (0 = permanent)
 
-# Delete your files (needs userhash from upload response or account)
+# Delete your files (needs the userhash supplied at upload, or an account)
 curl -X POST https://meowbox.dpdns.org/user/api.php \
   -F "reqtype=deletefiles" \
   -F "userhash=your_userhash" \
@@ -91,7 +91,7 @@ All limits → **[docs/limits.md](docs/limits.md)**
 | GIF size | 20 MB (use WebM for animation) |
 | Expiry options | 2 h / 24 h / 2 d / 7 d, or permanent (default) |
 | Banned extensions | Executables, scripts, potentially dangerous files |
-| Upload rate | 60 req/hour/IP (anti-abuse) |
+| Upload rate | 30 uploads/hour and 300 MB/day per IP (anti-abuse) |
 | View rate | 25 req/min/IP → then 5,000 req/hour/IP |
 
 Complete limits table → **[docs/limits.md](docs/limits.md)**
@@ -103,9 +103,9 @@ Complete limits table → **[docs/limits.md](docs/limits.md)**
 - **HTTPS everywhere**, HSTS, strict CSP on every page
 - **Zero third-party scripts** — no analytics, no trackers, no pixels
 - **Uploader IP** retained only for anti-abuse (malware/DMCA reports)
-- **Malware scan** on every upload
+- **Hash reputation checks** on every upload (known-bad hashes only; not a full antivirus scan)
 - **Expired files** return `410 Gone` and are purged
-- **Delete anonymous files** with the `userhash` returned at upload time
+- **Delete anonymous files** with the 24-char `userhash` supplied at upload (the web uploader saves it in your browser)
 
 Security policy → **[SECURITY.md](SECURITY.md)**
 

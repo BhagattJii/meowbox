@@ -2,7 +2,7 @@
 
 Base URL: `https://meowbox.dpdns.org`  
 API endpoint: `POST /user/api.php`  
-All responses are **plain text** (direct link, error message, or `userhash`).  
+All responses are **plain text** (direct link or error message; registration returns your `userhash`).  
 Authentication: session cookie (`sess`) **or** `userhash`/`key` form field.
 
 ---
@@ -12,7 +12,7 @@ Authentication: session cookie (`sess`) **or** `userhash`/`key` form field.
 | Field | Required | Description |
 |-------|----------|-------------|
 | `reqtype` | Yes | Action to perform (see table below) |
-| `userhash` / `key` | For authenticated actions | 24-char string returned at registration/upload |
+| `userhash` / `key` | For authenticated actions | 24 lowercase hex chars. Returned at registration. For anonymous uploads, generate one and send it at upload (the web uploader does this and saves it in the browser). |
 | `ttl` | Optional | Link lifetime in seconds: `0` (default, permanent), `7200` (2 h), `86400` (24 h), `172800` (2 d), `604800` (7 d). Values outside range are clamped. |
 | `views` | Optional | View limit: `0` (default, unlimited), `1` (one-shot link), `2`, or any integer up to `999999`. A limited link returns `410 Gone - view limit reached` after the last allowed view, and the file is purged from storage. |
 
@@ -81,7 +81,7 @@ curl -X POST https://meowbox.dpdns.org/user/api.php \
 **Behavior**  
 - Follows redirects, max 25 MB download.  
 - Filename/extension derived from final URL.  
-- Same validation, scanning, storage as `fileupload`.
+- Same validation, hash reputation check, and storage as `fileupload`.
 
 **Response**  
 Direct link on success, error message on failure.
@@ -258,7 +258,7 @@ curl -H "Cookie: sess=YOUR_SESSION" https://meowbox.dpdns.org/api/me
 | 413 | Error: file too large (max 25MB) | Size limit |
 | 429 | Error: slow down / too many attempts | Rate limit |
 | 500 | Error: uploads disabled | Storage backend unavailable |
-| 503 | Error: service temporarily at capacity | KV soft limit hit |
+| 503 | Error: service temporarily at capacity / Temporarily unavailable | KV soft limit hit, or a Telegram-backed file while the bot is not configured |
 
 All errors return `text/plain` with the message.
 
@@ -268,12 +268,13 @@ All errors return `text/plain` with the message.
 
 | Action | Limit | Window |
 |--------|-------|--------|
-| Upload (`fileupload`/`urlupload`) | 60 | 1 hour |
+| Upload (`fileupload`/`urlupload`) | 30 | 1 hour |
+| Upload data | 300 MB | 24 hours |
 | Signup | 5 | 1 hour |
 | Login (per IP) | 20 | 15 min |
 | Login (per username) | 8 | 15 min |
 | View (`GET /f/*`) | 25 → 5,000 | 1 min → 1 hour |
-| API general | 60 | 1 hour |
+| API general | 60 | 1 minute |
 
 Exceeding returns `429` with plain-text error.
 
@@ -306,8 +307,9 @@ curl -X POST https://meowbox.dpdns.org/user/api.php \
 
 ## Notes
 
-- **Anonymous uploads** (no `userhash`) cannot be deleted via API — only by the `userhash` returned in the upload response text.  
+- **Anonymous uploads**: send a 24-char hex `userhash` with the upload to own the file and delete it later. The web uploader generates one and stores it in the browser. Without a userhash the file is ownerless and cannot be deleted via the API; the upload response only contains the link.  
 - **Expired links** return `410 Gone` and are purged automatically.  
-- **CORS**: all endpoints allow `*` origin.  
+- **Download headers**: files are served with `Content-Disposition`; HTML, HTM, PHP, SVG and JS are forced to `text/plain` and `attachment`. HTTP Range requests are not supported, so downloads start from the beginning.  
+- **CORS**: API responses and served files allow `*` origin.  
 - **No JSON** — responses are plain text for simplicity.  
 - **User agent**: include a descriptive UA (e.g., `MyApp/1.0`) to help debugging.

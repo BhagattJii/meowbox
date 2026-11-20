@@ -10,12 +10,12 @@ High-level system design, data flow, and technology choices — no implementatio
 |-------|------------|---------|
 | **Edge compute** | Cloudflare Workers (JavaScript, V8 isolates) | Request handling, routing, auth, rate limiting, HTML serving |
 | **Metadata DB** | Cloudflare D1 (SQLite) | File metadata, users, sessions, albums, rate counters, blocked hashes |
-| **Primary blob storage** | Cloudflare KV (edge key-value) | Small/short-lived files (≤ 25 MB, TTL ≤ 7 d) |
-| **Secondary blob storage** | Remote object store (provider not public) | Larger/permanent files, overflow when KV near soft cap |
+| **Primary blob storage** | Cloudflare KV (edge key-value) | Expiring files and files above 20 MB (≤ 25 MB) |
+| **Secondary blob storage** | Telegram private channel via Bot API | Permanent files ≤ 20 MB and overflow when KV is near its soft cap |
 | **Malware scan cache** | Cloudflare KV | 30-day cache of SHA-256 → `ok`/`bad` |
 | **Cron** | Cloudflare Workers Cron Triggers (`*/15 * * * *`) | Purge expired files, clean sessions, maintenance |
-| **Assets** | Workers Assets binding (`[assets] directory = "./public"`) | Static HTML/CSS/JS/images served with caching headers |
-| **External APIs** | MalwareBazaar (abuse.ch), VirusTotal (optional) | Malware signature lookup |
+| **Assets** | Inline static assets bundled into the Worker module | HTML/CSS/JS/images served with caching headers |
+| **External APIs** | AlienVault OTX (default), MalwareBazaar / VirusTotal (optional) | Hash reputation lookup |
 | **DNS / CDN** | Cloudflare (custom domain `meowbox.dpdns.org`) | TLS, HSTS, caching, DDoS protection |
 
 ---
@@ -38,7 +38,7 @@ High-level system design, data flow, and technology choices — no implementatio
 │  │   ├─ /user/manage.php  → managePage     │
 │  │   ├─ /api/me           → apiMe()        │
 │  │   └─ /* (HTML)         → assets()       │
-│  └─ Malware scan (async, fail-open)  │
+│  └─ Hash reputation check (fail-open)│
 └─────────────────────────────────────┘
        │
        ├───────────────┬───────────────┐
@@ -55,7 +55,7 @@ High-level system design, data flow, and technology choices — no implementatio
 
 | Table | Key Columns | Purpose |
 |-------|-------------|---------|
-| `files` | `short` (PK), `ext`, `size`, `sha256`, `mime`, `owner` (userhash), `ip`, `store` (`kv`/`remote`), `kv_key`/`remote_ref`, `created`, `expires_at` (0=permanent) | Core file metadata |
+| `files` | `short` (PK), `ext`, `size`, `sha256`, `mime`, `owner` (userhash), `ip`, `store` (`kv`/`tg`), `kv_key` or `tg_chat`/`tg_msg`/`tg_file_id`, `created`, `expires_at` (0=permanent), `view_limit`, `views` | Core file metadata |
 | `users` | `id` (PK), `username`, `email`, `pass_hash` (salt:hash), `userhash` (24-char), `ip`, `created` | Accounts |
 | `sessions` | `sid` (PK), `user_id`, `expires` | Login sessions (30-day TTL) |
 | `albums` | `short` (PK), `title`, `descr`, `owner` (userhash), `created` | User albums |
@@ -71,31 +71,37 @@ High-level system design, data flow, and technology choices — no implementatio
 
 | Condition | Tier | Reason |
 |-----------|------|--------|
-| Size ≤ 25 MB **and** (TTL ≤ 7 d **or** permanent but KV usage < 950 MB soft cap) | **KV (edge)** | Fastest, served from Cloudflare cache, auto-TTL |
-| Size > 25 MB **or** permanent + KV at soft cap **or** KV put fails | **Remote object store** | Unlimited capacity, permanent retention |
+| Expiring file ≤ 25 MB, or any file ≤ 25 MB when Telegram is not configured | **KV (edge)** | Fast edge serving and automatic TTL |
+| File > 20 MB (hard limit is 25 MB) | **KV (edge)** | Telegram's `getFile` download limit is 20 MB |
+| Permanent file ≤ 20 MB with `BOT_TOKEN` configured | **Telegram channel** | Keeps permanent files off the KV free-tier quota |
+| KV put fails, or KV soft cap reached and file ≤ 20 MB | **Telegram channel** | Overflow path |
+| KV soft cap reached and file > 20 MB | **`503`** | The file cannot be served from Telegram at that size |
 
 - **KV key**: 16-char hex, value = file blob, optional `expirationTtl` for expiring files.
-- **Remote ref**: Telegram channel message (`tg_file_id`, `tg_chat`, `tg_msg`) — provider not documented publicly.
-- **Failover**: KV put failure → fall back to remote store. Remote store failure → `503`.
+- **Telegram ref**: channel message (`tg_chat`, `tg_msg`, `tg_file_id`) in a private channel.
+- **Failover**: KV put failure → Telegram. Telegram failure or unavailable bot → `503`, and D1 metadata is kept.
 
 ---
 
 ## Malware Scanning Pipeline
 
 ```
-Upload → SHA-256 → KV cache (mb:<hash>)?
-    ├─ hit "ok"  → accept
-    ├─ hit "bad" → block, 403
-    └─ miss → parallel:
-         ├─ MalwareBazaar (abuse.ch) get_info by hash
-         └─ VirusTotal v3 /files/<hash> (if VT_API_KEY)
-    ├─ any "bad" → KV put "bad" (30d), DB insert blocked_hashes, 403
-    ├─ any error → fail-open (accept, log)
-    └─ both "ok" → KV put "ok" (30d), accept
+Upload → SHA-256 (+ MD5 local blocklist)
+    ├─ local blocklist hit → 403
+    └─ KV cache mb:<sha256>?
+         ├─ hit "ok"  → accept
+         ├─ hit "bad" → 403
+         └─ miss → MalwareBazaar (if MB_AUTHKEY)
+                   → VirusTotal (if VT_API_KEY)
+                   → AlienVault OTX (default)
+              ├─ any match → KV put "bad" (30d), insert blocked_hashes, 403
+              ├─ any error → fail-open (accept)
+              └─ clean → KV put "ok" (30d), accept
 ```
 
 - **Cache TTL**: 30 days (`expirationTtl: 2592000`).
-- **Fail-open** ensures availability even if scanning services are down.
+- **Fail-open** ensures availability even if reputation services are down.
+- **Coverage**: known-bad hashes only. This is not a full antivirus scan, so unknown malware can still pass.
 
 ---
 
@@ -106,7 +112,7 @@ Upload → SHA-256 → KV cache (mb:<hash>)?
 1. Delete expired sessions (`sessions.expires < now`).
 2. Select up to 20 expired files (`files.expires_at > 0 AND expires_at < now`).
 3. For each:
-   - Delete from KV (`kv_key`) or remote store (Telegram `deleteMessage`).
+   - Delete from KV (`kv_key`) or the Telegram channel (`deleteMessage`).
    - Delete from `files` table.
    - Delete related `album_files` rows.
    - Purge Cloudflare cache for `https://meowbox.dpdns.org/f/<short>` and workers.dev variants.
@@ -117,7 +123,9 @@ Upload → SHA-256 → KV cache (mb:<hash>)?
 ## Rate Limiting Implementation
 
 - **Counters in D1** (`rate2` table): `(ip, window, count)`.
-- **Window**: 1 hour for uploads, 15 min for login, 1 min → 1 hour for views.
+- **Upload quota**: 30 uploads/hour + 300 MB/day per IP, aggregated from the `files` table.
+- **API general**: 60 requests/minute/IP.
+- **Window**: 1 hour for uploads and signup, 15 min for login, 1 min → 1 hour for views.
 - **Flood guard** (in-memory `viewHits` map): 25 req/min/IP soft, then 5,000/hr hard.
 - **Signup**: 5/hr/IP (`rateCheck("R:" + ip, 5, 3600)`).
 - **Login**: 20/15min/IP + 8/15min per username.
@@ -132,7 +140,7 @@ All limits return `429` with plain-text error.
 - **Session TTL**: 30 days (`expires` in `sessions` table).
 - **Password hashing**: PBKDF2-SHA256, 100k iterations, 16-byte salt, stored as `salt:hash`.
 - **Userhash**: 24-char random hex, used for API auth (independent of session).
-- **Anonymous uploads**: `owner = NULL`, deletion requires the `userhash` returned at upload.
+- **Anonymous uploads**: the client may supply a 24-char hex `userhash`; it becomes the file owner. The web uploader generates one and stores it in the browser. Without one, `owner = NULL` and the file cannot be deleted via the API.
 
 ---
 
@@ -141,21 +149,21 @@ All limits return `429` with plain-text error.
 | Boundary | Protection |
 |----------|------------|
 | **Upload validation** | Extension allowlist, magic-byte block (MZ/ELF), size clamp, filename sanitization |
-| **Malware scanning** | SHA-256 → MalwareBazaar + VirusTotal, 30d KV cache, fail-open |
+| **Malware checks** | SHA-256/MD5 blocklists + OTX reputation, optional MalwareBazaar/VirusTotal, 30d KV cache, fail-open |
 | **Direct link access** | No auth required (by design), `410` on expiry, cache-controlled |
 | **API auth** | Session cookie OR `userhash` form field; `userhash` validated against `users` table |
 | **Delete authorization** | `owner == userhash` enforced per file; album ownership checked per album |
 | **Rate limits** | Edge-enforced via D1 counters + in-memory flood guard |
 | **CORS** | `access-control-allow-origin: *` on API and served files |
-| **Headers** | `nosniff`, `cross-origin-resource-policy: cross-origin`, HSTS 1yr, `referrer-policy: no-referrer` |
-| **CSP on HTML** | `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` |
+| **Headers** | `nosniff`, `cross-origin-resource-policy: cross-origin`, HSTS 1yr, `referrer-policy: no-referrer`, `content-disposition` |
+| **CSP on HTML** | `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'` |
 
 ---
 
 ## SEO & Bot Behavior
 
 - **Redirect**: `*.workers.dev` and `www.meowbox.dpdns.org` → `https://meowbox.dpdns.org` (301 + `X-Robots-Tag: noindex, nofollow`).
-- **Sitemap**: `/sitemap.xml` (10 URLs, `lastmod` updated on deploy).
+- **Sitemap**: `/sitemap.xml` covers all public pages, with `lastmod` updated on deploy.
 - **IndexNow**: Key hosted at `/299acade1dc86348fa74d883ef20b3bd.txt`, all URLs submitted on deploy.
 - **JSON-LD**: `Organization`, `WebSite`, `WebApplication`, `SoftwareApplication`, `HowTo`, `FAQPage`, `BreadcrumbList` on relevant pages.
 - **Crawl logging**: Bots (`Googlebot`, `bingbot`, etc.) logged to D1 `crawl_log` table.
@@ -176,7 +184,7 @@ scripts/deploy.py (local) ──→  Worker "www"
                                  │
                                  ├─ D1 database "meowbox-db"
                                  ├─ KV namespace "KV"
-                                 ├─ Assets from ./public
+                                 ├─ Inline static assets in worker.js
                                  ├─ Secrets: BOT_TOKEN, MB_AUTHKEY, VT_API_KEY
                                  └─ Cron: */15 * * * *
 ```
@@ -203,9 +211,9 @@ scripts/deploy.py (local) ──→  Worker "www"
 |-----------|------------------|------------|
 | KV storage | 950 MB soft cap (well below) | Remote store overflow |
 | D1 rows | SQLite, ~millions OK | Partition by date if needed |
-| KV ops | Unlimited (edge) | N/A |
+| KV ops | Free-tier daily quotas apply | Edge cache reduces reads |
 | Cron batch | 20 files/run | Increase limit if backlog |
-| Malware scan latency | Parallel, 10s timeout | Fail-open, 30d cache |
+| Malware lookup latency | Sequential providers, 6–10s timeouts | Fail-open, 30d cache |
 
 ---
 
